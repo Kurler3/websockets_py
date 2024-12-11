@@ -64,11 +64,29 @@ class TCPSocket:
         else:
             self._handle_ws_frame(conn, addr, data)
 
-    def _handle_handshake(self, conn, addr, data):    
+    def _handle_handshake(self, conn, addr, data):
+
+        decoded_strs = [string.strip() for string in data.decode('utf-8').split('\n') if string != '']
+
+        print("DECODED STRS" , decoded_strs)
+
+        # If didn't get any proper strings from the data, just return
+        if not decoded_strs: return
+
+        #TODO - First item in the array needs to be the method, the resource and the protocol.
+
+        #TODO - Rest is whatever headers were passed. Make sure that there's the necessary ones for the connection. 
+        
+
+
+        #TODO - After everything is ok, append the addr to the ws_clients and send a response back to the client accepting the ws upgrade.
+        
         pass
 
+    #TODO
     def _send_websocket_handshake(self, data):
         pass
-    
+        
+    #TODO
     def _handle_ws_frame(self, conn, addr, data):
         pass
