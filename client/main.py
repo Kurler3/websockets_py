@@ -1,12 +1,18 @@
+from classes.ws_client import WSClient
+import sys
 
 
+if len(sys.argv) != 3:
+    print("Usage: python script.py <host> <port>")
+    sys.exit(1)
 
-#?? Handshake.
-# GET /chat HTTP/1.1
-# Host: server.example.com
-# Upgrade: websocket
-# Connection: Upgrade
-# Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
-# Origin: http://example.com
-# Sec-WebSocket-Protocol: chat, superchat
-# Sec-WebSocket-Version: 13
+host = sys.argv[1]
+port = int(sys.argv[2])
+
+if __name__ == "__main__":
+    
+    client = WSClient()
+    
+    client.connect(host, port)
+
+    # Keep sending messages on the websocket connection.    
