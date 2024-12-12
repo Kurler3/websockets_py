@@ -66,23 +66,51 @@ class TCPSocket:
 
     def _handle_handshake(self, conn, addr, data):
 
-        decoded_strs = [string.strip() for string in data.decode('utf-8').split('\n') if string != '']
-
-        print("DECODED STRS" , decoded_strs)
+        decoded_strs = [string.strip() for string in data.decode('utf-8').split('\n') if string.strip() != '']
 
         # If didn't get any proper strings from the data, just return
         if not decoded_strs: return
 
-        #TODO - First item in the array needs to be the method, the resource and the protocol.
+        # First item in the array needs to be the method, the resource and the protocol.
+        request_line = decoded_strs[0]
 
-        #TODO - Rest is whatever headers were passed. Make sure that there's the necessary ones for the connection. 
-        
+        request_line_arr = request_line.split(' ')
 
+        if len(request_line_arr) != 3:
+            self._refuse_ws_connection(conn, addr)
+            return
 
+        method, resource, protocol = request_line_arr
+
+        if method != 'GET' and protocol != "HTTP/1.1":
+            self._refuse_ws_connection(conn, addr)
+
+        # Rest is whatever headers were passed. Make sure that there's the necessary ones for the connection. 
+        decoded_strs = decoded_strs[1:]
+
+        # Init dict to store all the headers.
+        headers = {}
+
+        for header_line in decoded_strs:
+            header, value = header_line.split(': ')
+            headers[header] = value
+
+        ##################################################################
+        ## CHECK THAT THE HEADERS ARE ALL OK FOR THE HANDSHAKE ###########
+        ##################################################################
+
+        #TODO
+
+        print('HEADERS: ', headers)
+    
         #TODO - After everything is ok, append the addr to the ws_clients and send a response back to the client accepting the ws upgrade.
         
         pass
 
+    def _refuse_ws_connection(self, conn, addr):
+        print(f'Refusing connection for addr: {addr}')
+        conn.sendall('I refuse to connect with you, I don\'t like you')
+    
     #TODO
     def _send_websocket_handshake(self, data):
         pass
