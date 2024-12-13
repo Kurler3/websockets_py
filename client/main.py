@@ -16,3 +16,8 @@ if __name__ == "__main__":
     client.connect(host, port)
 
     # Keep sending messages on the websocket connection.    
+    if client.connected:
+        while True:
+            input_for_ws = input('What would you like to send to the websocket server? ')
+
+            #TODO Send frame.

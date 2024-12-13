@@ -2,6 +2,7 @@ import socket
 import threading
 import base64
 import hashlib
+from utils.http_parser import parse_http_request
 
 class TCPSocket:
     
@@ -67,75 +68,42 @@ class TCPSocket:
 
     def _handle_handshake(self, conn, addr, data):
 
-        decoded_strs = [string.strip() for string in data.decode('utf-8').split('\n') if string.strip() != '']
-
-        # If didn't get any proper strings from the data, just return
-        if not decoded_strs: return
-
-        # First item in the array needs to be the method, the resource and the protocol.
-        request_line = decoded_strs[0]
-
-        request_line_arr = request_line.split(' ')
-
-        if len(request_line_arr) != 3:
-            self._refuse_ws_connection(conn, addr)
-            raise ValueError('Invalid HTTP Request')
-
-        method, resource, protocol = request_line_arr
-
-        if method != 'GET' and protocol != "HTTP/1.1":
-            self._refuse_ws_connection(conn, addr)
-            raise Exception('Invalid HTTP Request')
-
-        # Rest is whatever headers were passed. Make sure that there's the necessary ones for the connection. 
-        decoded_strs = decoded_strs[1:]
-
-        # Init dict to store all the headers.
-        headers = {}
-
-        for header_line in decoded_strs:
-            header, value = header_line.split(': ')
-            headers[header] = value
-
-        ##################################################################
-        ## CHECK THAT THE HEADERS ARE ALL OK FOR THE HANDSHAKE ###########
-        ##################################################################
-
-        # Check the upgrade header.
-        if headers.get("Upgrade", "").lower() != "websocket":
-            msg = "Missing or invalid 'Upgrade' header"
-            print(msg)
-            self._refuse_ws_connection(conn, addr)
-            raise Exception(msg)
-
-        # Check the upgrade header
-        if "upgrade" not in headers.get("Connection", "").lower():
-            msg = "Missing or invalid 'Connection' header"
-            print(msg)
-            self._refuse_ws_connection(conn, addr)
-            raise Exception(msg)
-        
-        # Check the websocket key. (will be used in the Sec-Websocket-Accept header)
-        key = headers.get("Sec-WebSocket-Key", "")
         try:
-            decoded_key = base64.b64decode(key)
-            if len(decoded_key) != 16:  # WebSocket keys are 16 bytes
-                raise ValueError
-        except Exception:
+            
+            method, resource, protocol, headers = parse_http_request(data)
+
+            ##################################################################
+            ## CHECK THAT THE HEADERS ARE ALL OK FOR THE HANDSHAKE ###########
+            ##################################################################
+
+            # Check the upgrade header.
+            if headers.get("Upgrade", "").lower() != "websocket":
+                raise Exception("Missing or invalid 'Upgrade' header")
+
+            # Check the upgrade header
+            if "upgrade" not in headers.get("Connection", "").lower():
+                raise Exception("Missing or invalid 'Connection' header")
+            
+            # Check the websocket key. (will be used in the Sec-Websocket-Accept header)
+            key = headers.get("Sec-WebSocket-Key", "")
+            try:
+                decoded_key = base64.b64decode(key)
+                if len(decoded_key) != 16:  # WebSocket keys are 16 bytes
+                    raise ValueError
+            except Exception:
+                raise ValueError("Invalid 'Sec-WebSocket-Key' header")
+
+            # Check the websocket version. Needs to be 13.
+            if headers.get("Sec-WebSocket-Version", "") != "13":
+                raise ValueError("Unsupported 'Sec-WebSocket-Version'")
+
+            # Accept handshake
+            self._accept_handshake(conn, addr, ws_key=key)
+
+        except Exception as e:
+            print(f'Exception while handling handshake {e}')
             self._refuse_ws_connection(conn, addr)
-            raise ValueError("Invalid 'Sec-WebSocket-Key' header")
-
-        # Check the websocket version. Needs to be 13.
-        if headers.get("Sec-WebSocket-Version", "") != "13":
-            self._refuse_ws_connection(conn, addr)
-            raise ValueError("Unsupported 'Sec-WebSocket-Version'")
-
-
-        # Accept handshake
-        self._accept_handshake(conn, addr, ws_key=key)
-
-        
-
+                    
     def _refuse_ws_connection(self, conn, addr):
         print(f'Refusing connection for addr: {addr}')
         conn.sendall('I refuse to connect with you, I don\'t like you')
