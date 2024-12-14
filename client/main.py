@@ -1,4 +1,4 @@
-from classes.ws_client import WSClient
+from client.classes.ws_client import WSClient
 import sys
 
 
@@ -17,7 +17,12 @@ if __name__ == "__main__":
 
     # Keep sending messages on the websocket connection.    
     if client.connected:
+        
+        # Start listening for websocket messages from the server.
+        client.listen_for_ws_msg()
+
         while True:
             input_for_ws = input('What would you like to send to the websocket server? ')
 
-            #TODO Send frame.
+            # Send msg.
+            client.send_ws_msg(input_for_ws)

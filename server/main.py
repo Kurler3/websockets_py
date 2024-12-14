@@ -1,4 +1,4 @@
-from classes.tcp_socket import TCPSocket
+from server.classes.tcp_socket import TCPSocket
 
 
 if __name__ == "__main__":
