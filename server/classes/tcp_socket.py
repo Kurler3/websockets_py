@@ -143,9 +143,8 @@ class TCPSocket:
         hashed = hashlib.sha1(concatenated.encode('utf-8')).digest()
         return base64.b64encode(hashed).decode('utf-8')
 
-    # TODO
-
     def _handle_ws_frame(self, conn, addr, data):
+
         """Decodes a single WebSocket frame received from the connection."""
 
         if len(data) < 2:
@@ -222,6 +221,3 @@ class TCPSocket:
         decoded_message = payload.decode('utf-8')
 
         print(f'Decoded message from ws: ', decoded_message)
-
-        # Return the decoded message
-        return decoded_message

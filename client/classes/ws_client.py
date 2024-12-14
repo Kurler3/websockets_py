@@ -54,6 +54,8 @@ class WSClient:
 
         print("Listening for websocket messages from the server...")
 
+        #TODO - Handle messages from the ws server
+
         pass
 
     def send_ws_msg(self, data):
