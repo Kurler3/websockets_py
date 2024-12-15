@@ -3,7 +3,7 @@ import threading
 import base64
 import hashlib
 from utils.http_parser import parse_http_request
-
+from utils.ws import decode_ws_frame
 
 class TCPSocket:
 
@@ -69,13 +69,16 @@ class TCPSocket:
         finally:
             print(f"Connection closed with: {addr}")
 
+            # Remove from the ws connections set.
+            self.ws_clients.remove(addr)
+
     def _process_data(self, conn, addr, data):
 
         # If the address is not in the ws_clients set, then need to parse the data as an http string.
         if addr not in self.ws_clients:
             self._handle_handshake(conn, addr, data)
         else:
-            self._handle_ws_frame(conn, addr, data)
+            self._handle_ws_frame(data)
 
     def _handle_handshake(self, conn, addr, data):
 
@@ -143,81 +146,10 @@ class TCPSocket:
         hashed = hashlib.sha1(concatenated.encode('utf-8')).digest()
         return base64.b64encode(hashed).decode('utf-8')
 
-    def _handle_ws_frame(self, conn, addr, data):
+    def _handle_ws_frame(self, data):
 
         """Decodes a single WebSocket frame received from the connection."""
 
-        if len(data) < 2:
-            raise ValueError("Incomplete frame header received.")
+        message = decode_ws_frame(data)
 
-        # Extract header information (first byte: FIN, opcode, etc., second byte: mask & length)
-        byte1, byte2 = data[:2]
-
-        # FIN: Most significant bit in byte1
-        fin = (byte1 & 0b10000000) >> 7
-
-        # Opcode: Last 4 bits in byte1
-        opcode = byte1 & 0x0F
-
-        print('FIN AND OPCODE: ', fin, opcode)
-
-        # Check if it's a Close frame
-        if opcode == 0x8:
-            raise ValueError("Received Close frame")
-
-        # Mask bit: Most significant bit in byte2
-        mask = (byte2 >> 7) & 0x01
-
-        # Extract the Payload length: Remaining 7 bits of byte2
-        payload_length = byte2 & 0x7F
-
-        # If Payload Length is 126 or 127, we'll need to read additional bytes
-        length_offset = 2  # Default starting point for payload length
-
-        if payload_length == 126:
-
-            # If less than 4 bytes, there's data missing, because in this case, there's an extension of 2 bytes for the payload length.
-            if len(data) < 4:
-                raise ValueError("Incomplete frame: 2-byte length extension required.")
-
-            # To create a hexadecimal, move the first byte to the left and append the second byte.
-            payload_length = (data[2] << 8) + data[3]  # 16-bit length
-            
-            # Now its 4 bytes just for the payload_length and the headers
-            length_offset = 4
-
-        elif payload_length == 127:
-
-            if len(data) < 10:
-                raise ValueError(
-                    "Incomplete frame: 8-byte length extension required.")
-            
-            # 64-bit length in the next 8 bytes
-            payload_length = (
-                (data[2] << 56) | (data[3] << 48) | (data[4] << 40) |
-                (data[5] << 32) | (data[6] << 24) | (data[7] << 16) |
-                (data[8] << 8) | data[9]
-            )
-
-            length_offset = 10
-
-        # Extract the mask key (4 bytes if mask bit is set)
-        if mask:
-            mask_key = data[length_offset:length_offset+4]
-            mask_offset = length_offset + 4
-        else:
-            mask_key = None
-            mask_offset = length_offset
-
-        # Extract the payload data (Message)
-        payload = data[mask_offset:mask_offset + payload_length]
-
-        # If mask is set, apply the mask key to the payload
-        if mask:
-            payload = bytearray([byte ^ mask_key[i % 4]
-                                for i, byte in enumerate(payload)])
-
-        # Convert the payload back to a string (assuming UTF-8 encoding for text messages)
-        decoded_message = payload.decode('utf-8')
-
-        print(f'Decoded message from ws: ', decoded_message)
+        print(f'Decoded message from ws: ', message)
